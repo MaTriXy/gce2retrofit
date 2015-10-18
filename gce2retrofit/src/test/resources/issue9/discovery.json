@@ -1,0 +1,10 @@
+{
+ "name": "acl",
+ "rootUrl": "https://kyadev-kfkb.appspot.com/_ah/api/",
+ "schemas": {
+  "JsonMap": {
+   "id": "JsonMap",
+   "type": "object"
+  }
+ }
+}

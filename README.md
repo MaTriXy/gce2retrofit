@@ -16,7 +16,7 @@ e.g. https://2-dot-test-pont.appspot.com/_ah/api/discovery/v1/apis/helloworld/v1
 
 `methods.csv` (optional)
 
-Valid values are `sync` and `async`. If omitted, both synchronous and asynchronous
+Valid values are `sync`, `async` and `reactive`. If omitted, both synchronous and asynchronous
 interfaces will be generated.
 
 `classmap.tsv` (optional)
@@ -40,11 +40,19 @@ Apply the plugin in your `build.gradle`:
         }
       }
       dependencies {
-        classpath 'com.sqisland:gce2retrofit:1.0.0-SNAPSHOT'
+        classpath 'com.sqisland:gce2retrofit:1.1.0-SNAPSHOT'
       }
     }
 
     apply plugin: 'com.sqisland.gce2retrofit'
+
+## Upgrade guide
+
+### Version 1.1.0
+
+Primitives have been replaced by Objects e.g. `Integer` instead of `int`. Please go through your
+code and make sure that you check for `null` before using the value of any `Boolean`, `Integer`,
+`Float` and `Double`.
 
 ## Contributing
 

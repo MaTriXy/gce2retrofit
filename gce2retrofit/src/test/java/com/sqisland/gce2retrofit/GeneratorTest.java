@@ -1,5 +1,9 @@
 package com.sqisland.gce2retrofit;
 
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
@@ -9,14 +13,13 @@ import java.nio.file.Paths;
 import java.util.EnumSet;
 import java.util.Map;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import static com.google.common.truth.Truth.assertThat;
 
 @RunWith(JUnit4.class)
 public final class GeneratorTest {
+  private static final EnumSet<Generator.MethodType> BOTH_METHOD_TYPES
+      = EnumSet.of(Generator.MethodType.SYNC, Generator.MethodType.ASYNC);
+
   @Test
   public void testHelloGreetingSync() throws IOException, URISyntaxException {
     doTestHelloGreeting(EnumSet.of(Generator.MethodType.SYNC), ".sync");
@@ -29,7 +32,12 @@ public final class GeneratorTest {
 
   @Test
   public void testHelloGreetingBoth() throws IOException, URISyntaxException {
-    doTestHelloGreeting(EnumSet.allOf(Generator.MethodType.class), ".both");
+    doTestHelloGreeting(BOTH_METHOD_TYPES, ".both");
+  }
+
+  @Test
+  public void testHelloGreetingReactive() throws IOException, URISyntaxException {
+    doTestHelloGreeting(EnumSet.of(Generator.MethodType.REACTIVE), ".reactive");
   }
 
   @Test
@@ -69,12 +77,26 @@ public final class GeneratorTest {
     InputStreamReader reader = new InputStreamReader(
         GeneratorTest.class.getResourceAsStream("/nested-resources/discovery.json"));
     StringWriterFactory factory = new StringWriterFactory();
-    Generator.generate(reader, factory, null, EnumSet.allOf(Generator.MethodType.class));
-    
+    Generator.generate(reader, factory, null, BOTH_METHOD_TYPES);
+
     assertThat(factory.getString("com/appspot/nested_resources/model/TestObject.java"))
         .isEqualTo(getExpectedString("/nested-resources/TestObject.java.model"));
     assertThat(factory.getString("com/appspot/nested_resources/NestedTest.java"))
         .isEqualTo(getExpectedString("/nested-resources/NestedTest.java.both"));
+    assertThat(factory.getCount()).isEqualTo(2);
+  }
+
+  @Test
+  public void testNamelessParameter() throws IOException, URISyntaxException {
+    InputStreamReader reader = new InputStreamReader(
+        GeneratorTest.class.getResourceAsStream("/nameless-parameter/discovery.json"));
+    StringWriterFactory factory = new StringWriterFactory();
+    Generator.generate(reader, factory, null, BOTH_METHOD_TYPES);
+
+    assertThat(factory.getString("com/appspot/nameless_parameter/model/TestObject.java"))
+        .isEqualTo(getExpectedString("/nameless-parameter/TestObject.java.model"));
+    assertThat(factory.getString("com/appspot/nameless_parameter/Nameless.java"))
+        .isEqualTo(getExpectedString("/nameless-parameter/Nameless.java.both"));
     assertThat(factory.getCount()).isEqualTo(2);
   }
 
@@ -109,6 +131,34 @@ public final class GeneratorTest {
     assertThat(factory.getString("com/appspot/kyatest_kfkb/Media.java"))
         .isEqualTo(getExpectedString("/enum/Media.java.sync"));
     assertThat(factory.getCount()).isEqualTo(3);
+  }
+
+  @Test
+  // https://github.com/chiuki/gce2retrofit/issues/9
+  public void testIssue9() throws IOException, URISyntaxException {
+    InputStreamReader reader = new InputStreamReader(
+        GeneratorTest.class.getResourceAsStream("/issue9/discovery.json"));
+    StringWriterFactory factory = new StringWriterFactory();
+
+    Generator.generate(reader, factory, null, EnumSet.of(Generator.MethodType.SYNC));
+
+    assertThat(factory.getString("com/appspot/kyadev_kfkb/model/JsonMap.java"))
+        .isEqualTo(getExpectedString("/issue9/JsonMap.java.model"));
+    assertThat(factory.getCount()).isEqualTo(1);
+  }
+
+  @Test
+  // https://github.com/chiuki/gce2retrofit/issues/11
+  public void testPostResponse() throws IOException, URISyntaxException {
+    InputStreamReader reader = new InputStreamReader(
+        GeneratorTest.class.getResourceAsStream("/post-response/discovery.json"));
+    StringWriterFactory factory = new StringWriterFactory();
+
+    Generator.generate(reader, factory, null, EnumSet.of(Generator.MethodType.SYNC));
+
+    assertThat(factory.getString("com/appspot/post_response/Registration.java"))
+        .isEqualTo(getExpectedString("/post-response/Registration.java"));
+    assertThat(factory.getCount()).isEqualTo(1);
   }
 
   private static String getExpectedString(String path) throws URISyntaxException, IOException {

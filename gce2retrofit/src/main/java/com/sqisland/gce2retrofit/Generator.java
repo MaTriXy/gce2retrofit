@@ -38,7 +38,7 @@ public class Generator {
   private static Gson gson = new Gson();
 
   public enum MethodType {
-    SYNC, ASYNC
+    SYNC, ASYNC, REACTIVE
   }
 
   public static void main(String... args)
@@ -76,7 +76,7 @@ public class Generator {
         OPTION_CLASS_MAP, true, "Map fields to classes. Format: field_name\\tclass_name");
     options.addOption(
         OPTION_METHODS, true,
-        "Methods to generate, either sync or async. Default is to generate both.");
+        "Methods to generate, either sync, async or reactive. Default is to generate sync & async.");
     return options;
   }
 
@@ -100,6 +100,9 @@ public class Generator {
     Discovery discovery = gson.fromJson(jsonReader, Discovery.class);
 
     String packageName = StringUtil.getPackageName(discovery.baseUrl);
+    if (packageName == null || packageName.isEmpty()) {
+      packageName = StringUtil.getPackageName(discovery.rootUrl);
+    }
     String modelPackageName = packageName + ".model";
 
     for (Entry<String, JsonElement> entry : discovery.schemas.entrySet()) {
@@ -144,10 +147,13 @@ public class Generator {
         if ("async".equals(part) || "both".equals(part)) {
           methodTypes.add(MethodType.ASYNC);
         }
+        if ("reactive".equals(part)) {
+          methodTypes.add(MethodType.REACTIVE);
+        }
       }
     }
     if (methodTypes.isEmpty()) {
-      methodTypes = EnumSet.allOf(MethodType.class);
+      methodTypes = EnumSet.of(Generator.MethodType.ASYNC, Generator.MethodType.SYNC);
     }
     return methodTypes;
   }
@@ -175,7 +181,7 @@ public class Generator {
       javaWriter.endType();
     } else if (type.equals("string")) {
       javaWriter.beginType(modelPackageName + "." + id, "enum", EnumSet.of(PUBLIC));
-      generateEnum(javaWriter, schema, classMap);
+      generateEnum(javaWriter, schema);
       javaWriter.endType();
     }
 
@@ -185,7 +191,11 @@ public class Generator {
   private static void generateObject(
       JavaWriter javaWriter, JsonObject schema, Map<String, String> classMap)
       throws IOException {
-    JsonObject properties = schema.get("properties").getAsJsonObject();
+    JsonElement element = schema.get("properties");
+    if (element == null) {
+      return;
+    }
+    JsonObject properties = element.getAsJsonObject();
     for (Entry<String, JsonElement> entry : properties.entrySet()) {
       String key = entry.getKey();
       String variableName = key;
@@ -203,9 +213,7 @@ public class Generator {
     }
   }
 
-  private static void generateEnum(
-      JavaWriter javaWriter, JsonObject schema, Map<String, String> classMap)
-      throws IOException {
+  private static void generateEnum(JavaWriter javaWriter, JsonObject schema) throws IOException {
     JsonArray enums = schema.get("enum").getAsJsonArray();
     for (int i = 0; i < enums.size(); ++i) {
       javaWriter.emitEnumValue(enums.get(i).getAsString());
@@ -253,14 +261,20 @@ public class Generator {
         .emitEmptyLine()
         .emitImports(
             "retrofit.Callback",
+            "retrofit.client.Response",
             "retrofit.http.GET",
             "retrofit.http.POST",
             "retrofit.http.PATCH",
             "retrofit.http.DELETE",
             "retrofit.http.Body",
             "retrofit.http.Path",
-            "retrofit.http.Query")
-        .emitEmptyLine();
+            "retrofit.http.Query");
+
+    if (methodTypes.contains(MethodType.REACTIVE)) {
+      javaWriter.emitImports("rx.Observable");
+    }
+
+    javaWriter.emitEmptyLine();
 
     javaWriter.beginType(
         packageName + "." + className, "interface", EnumSet.of(PUBLIC));
@@ -269,14 +283,9 @@ public class Generator {
       String methodName = entry.getKey();
       Method method = gson.fromJson(entry.getValue(), Method.class);
 
-      if (methodTypes.contains(MethodType.SYNC)) {
+      for (MethodType methodType : methodTypes) {
         javaWriter.emitAnnotation(method.httpMethod, "\"/" + method.path + "\"");
-        emitMethodSignature(fileWriter, methodName, method, true);
-      }
-
-      if (methodTypes.contains(MethodType.ASYNC)) {
-        javaWriter.emitAnnotation(method.httpMethod, "\"/" + method.path + "\"");
-        emitMethodSignature(fileWriter, methodName, method, false);
+        emitMethodSignature(fileWriter, methodName, method, methodType);
       }
     }
 
@@ -287,20 +296,30 @@ public class Generator {
 
   // TODO: Use JavaWriter to emit method signature
   private static void emitMethodSignature(
-      Writer writer, String methodName, Method method, boolean synchronous) throws IOException {
+      Writer writer, String methodName, Method method, MethodType methodType) throws IOException {
     ArrayList<String> params = new ArrayList<String>();
 
     if (method.request != null) {
       params.add("@Body " + method.request.$ref + " " +
-          method.request.parameterName);
+          (method.request.parameterName != null ? method.request.parameterName : "resource"));
     }
     for (Entry<String, JsonElement> param : getParams(method)) {
       params.add(param2String(param));
     }
 
-    String returnValue = (synchronous && method.response != null) ? method.response.$ref : "void";
+    String returnValue = "void";
+    if (methodType == MethodType.SYNC && "POST".equals(method.httpMethod)) {
+      returnValue = "Response";
+    }
+    if (method.response != null) {
+      if (methodType == MethodType.SYNC) {
+        returnValue = method.response.$ref;
+      } else if (methodType == MethodType.REACTIVE) {
+        returnValue = "Observable<" + method.response.$ref + ">";
+      }
+    }
 
-    if (!synchronous) {
+    if (methodType == MethodType.ASYNC) {
       if (method.response == null) {
         params.add("Callback<Void> cb");
       } else {
@@ -308,7 +327,7 @@ public class Generator {
       }
     }
 
-    writer.append("  " + returnValue + " " + methodName + "(");
+    writer.append("  " + returnValue + " " + methodName + (methodType == MethodType.REACTIVE ? "Rx" : "") + "(");
     for (int i = 0; i < params.size(); ++i) {
       if (i != 0) {
         writer.append(", ");
