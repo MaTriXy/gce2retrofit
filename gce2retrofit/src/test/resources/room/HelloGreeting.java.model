@@ -1,0 +1,25 @@
+package com.appspot.example.model;
+
+import androidx.annotation.NonNull;
+import androidx.room.ColumnInfo;
+import androidx.room.ColumnInfo.Collate;
+import androidx.room.ColumnInfo.SQLiteTypeAffinity;
+import androidx.room.Embedded;
+import androidx.room.Entity;
+import androidx.room.ForeignKey;
+import androidx.room.ForeignKey.Action;
+import androidx.room.Ignore;
+import androidx.room.Index;
+import androidx.room.PrimaryKey;
+import androidx.room.Relation;
+import com.google.gson.annotations.SerializedName;
+
+import java.util.List;
+
+@Entity(tableName = "hello_greeting", indices = @Index(value = "id"))
+public class HelloGreeting {
+  @PrimaryKey
+  @NonNull
+  public String id;
+  public String message;
+}

@@ -5,7 +5,7 @@ Generates [Retrofit](http://square.github.io/retrofit/) interfaces and related m
 
 ## Usage
 
-### Configuaration files
+### Configuration files
 
 Put the configuration files for each GCE server in a directory under `src/main/gce2retrofit`.
 
@@ -22,6 +22,35 @@ interfaces will be generated.
 `classmap.tsv` (optional)
 
 Map fields with the specified names to the specified types.
+
+`room.json` (optional)
+
+Map classes/fields with specific room annotations and attributes.
+
+Format:
+```
+{
+  "class_name" : [
+    {
+      "annotation1" : "annotation_name1",
+      "attributes" : {
+        "attribute_name" : "value",
+        "attribute_name_2" : "value_2"
+      }
+    }
+  ],
+  "class_name.field_name" : [
+    {
+      "annotation1" : "annotation_name1"
+    },
+    {
+      "annotation2" : "annotation_name2"
+    }
+  ]
+}
+```
+
+See [`gce2retrofit/src/test/resources/room/room.json`](gce2retrofit/src/test/resources/room/room.json) for an example.
 
 Code will be generated in `build/generated/source/gce2retrofit/`
  
@@ -40,13 +69,19 @@ Apply the plugin in your `build.gradle`:
         }
       }
       dependencies {
-        classpath 'com.sqisland:gce2retrofit:1.1.0-SNAPSHOT'
+        classpath 'com.sqisland:gce2retrofit:2.0.0-SNAPSHOT'
       }
     }
 
     apply plugin: 'com.sqisland.gce2retrofit'
 
 ## Upgrade guide
+
+### Version 2.0.0
+Migrate your project to [AndroidX](https://developer.android.com/jetpack/androidx/migrate)
+
+### Version 1.6.0
+Room.json file has been updated so each type(class/field) takes a list of annotations.
 
 ### Version 1.1.0
 

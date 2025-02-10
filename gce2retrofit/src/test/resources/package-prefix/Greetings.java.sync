@@ -1,6 +1,7 @@
-package com.appspot.kyatest_kfkb;
+package com.appspot.package_prefix;
 
-import com.appspot.kyatest_kfkb.model.*;
+import com.appspot.package_prefix.model.*;
+import com.appspot.package_prefix.model.db.*;
 
 import retrofit.Callback;
 import retrofit.client.Response;
@@ -13,7 +14,7 @@ import retrofit.http.PUT;
 import retrofit.http.Path;
 import retrofit.http.Query;
 
-public interface Media {
-  @GET("/media/{mediaKey}")
-  MediaGetDTO get(@Path("mediaKey") String mediaKey, @Query("token") String token);
+public interface Greetings {
+  @POST("/greet")
+  User greet();
 }
